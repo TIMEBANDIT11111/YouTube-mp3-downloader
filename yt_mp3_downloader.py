@@ -51,50 +51,31 @@ def download():
         if "playlist" in p:#checks if input is playlist or song link
             p = Playlist(p)
             for video in p.videos:
-                try:#downloading every song in playlist to Downloads folder
-                    write(f"[DOWNLOADING] {video.watch_url}")
-                    yt = YouTube(video.watch_url)
-                    video = yt.streams.filter(only_audio=True).first()
-                    out_file = video.download(newpath)
-                    base, ext = os.path.splitext(out_file)
-                    new_file = base + '.mp3'
-                    os.rename(out_file, new_file)
-                    write2(f"[SUCCESFUL] {video.title}")
-                except:
-                    write2(f"[ERROR](video might be age restricted)")
+                threading.Thread(target=threaddownloader(url=video.watch_url)).start()
         else:
-            try:#downloading song to Downloads folder
-                write(f"[DOWNLOADING] {p}")
-                yt = YouTube(p)
-                video = yt.streams.filter(only_audio=True).first()
-                out_file = video.download(newpath)
-                base, ext = os.path.splitext(out_file)
-                new_file = base + '.mp3'
-                os.rename(out_file, new_file)
-                write2(f"[SUCCESFUL] {video.title}")
-            except:
-                write2(f"[ERROR](video might be age restricted)")
+            threading.Thread(target=threaddownloader(url=p)).start()
     else:
-        try:
-            write(f"[SEARCHING] {p}")
-            result = search_song(amount=5, song=p, get_url=True)
-            threadpopup(search_str=p,result=result)
-        except:
-            write2(f"[ERROR](video might be age restricted)")
+        write(f"[SEARCHING] {p}")
+        result = search_song(amount=5, song=p, get_url=True)
+        threadpopup(search_str=p,result=result)
+            
 
 def handler(url,window):
     window.destroy()
-    threading.Thread(target=threaddownloader(url=url,window=window)).start()
+    threading.Thread(target=threaddownloader(url=url)).start()
 
-def threaddownloader(url,window):
-    write(f"[DOWNLOADING] {YouTube(url).title}")
-    yt = YouTube(url)
-    video = yt.streams.filter(only_audio=True).first()
-    out_file = video.download(newpath)
-    base, ext = os.path.splitext(out_file)
-    new_file = base + '.mp3'
-    os.rename(out_file, new_file)
-    write2(f"[SUCCESFUL] {video.title}")
+def threaddownloader(url):
+    try:
+        write(f"[DOWNLOADING] {YouTube(url).title}")
+        yt = YouTube(url)
+        video = yt.streams.filter(only_audio=True).first()
+        out_file = video.download(newpath)
+        base, ext = os.path.splitext(out_file)
+        new_file = base + '.mp3'
+        os.rename(out_file, new_file)
+        write2(f"[SUCCESFUL] {video.title}")
+    except:
+        write2(f"[ERROR](video might be age restricted)")
 
 def threadpopup(search_str,result):
     threading.Thread(target=open_popup(search_str=search_str,result=result)).start()
