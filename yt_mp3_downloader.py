@@ -6,13 +6,20 @@ import os
 from pytube import YouTube
 import threading
 import youtube_dl
+import yt_dlp
 from PIL import ImageTk
 from urllib.request import urlopen
+import multiprocessing.dummy as mp
 root = tk.Tk()
-root.geometry("550x360")
+root.geometry("550x380")
 name_var = tk.StringVar()
 
-ytdl_options={"format": "bestaudio", "quiet": True,"cookiefile":"cookies.txt","no_warnings": True,}
+ytdl_options={"format": "bestaudio", "quiet": False,'outtmpl': 'Downloads/%(title)s.%(ext)s',"no_warnings": True,'format': 'bestaudio/best',
+    'postprocessors': [{
+        'key': 'FFmpegExtractAudio',
+        'preferredcodec': 'mp3',
+        'preferredquality': '192',
+    }],}
 
 newpath = 'Downloads'
 if not os.path.exists(newpath):
@@ -49,36 +56,38 @@ def download():
     name_var.set("")
     if 'https://' in p:
         if "playlist" in p:#checks if input is playlist or song link
-            p = Playlist(p)
-            for video in p.videos:
-                threading.Thread(target=threaddownloader(url=video.watch_url)).start()
+            l = Playlist(p)
+            if var1.get()==1:
+                p=mp.Pool(8)
+                p.map(downloader,l.videos) # range(0,1000) if you want to replicate your example
+                p.close()
+                p.join()
+            else:
+                for video in l.videos:
+                    downloader(video.watch_url)
         else:
-            threading.Thread(target=threaddownloader(url=p)).start()
+            downloader(p)
     else:
         write(f"[SEARCHING] {p}")
         result = search_song(amount=5, song=p, get_url=True)
-        threadpopup(search_str=p,result=result)
-            
-
+        threading.Thread(target=open_popup(search_str=p,result=result)).start()
+        
 def handler(url,window):
+    downloader(url=url)
     window.destroy()
-    threading.Thread(target=threaddownloader(url=url)).start()
+    
 
-def threaddownloader(url):
+def downloader(url):
+    if type(url)!=str:
+        url=url.watch_url
     try:
         write(f"[DOWNLOADING] {YouTube(url).title}")
-        yt = YouTube(url)
-        video = yt.streams.filter(only_audio=True).first()
-        out_file = video.download(newpath)
-        base, ext = os.path.splitext(out_file)
-        new_file = base + '.mp3'
-        os.rename(out_file, new_file)
-        write2(f"[SUCCESFUL] {video.title}")
-    except:
+        with yt_dlp.YoutubeDL(ytdl_options) as ydl:
+            ydl.download([url])
+        write2(f"[SUCCESFUL] {YouTube(url).title}")
+    except Exception as e:
+        print(e)
         write2(f"[ERROR](video might be age restricted)")
-
-def threadpopup(search_str,result):
-    threading.Thread(target=open_popup(search_str=search_str,result=result)).start()
 
 def open_popup(search_str,result):
     top= Toplevel(root)
@@ -152,6 +161,8 @@ def open_popup(search_str,result):
     Button(top,text='Download',command=lambda:handler(result[4],window=top)).place(x=685,y=210)
 
 
+var1 = tk.IntVar()
+c1 = tk.Checkbutton(root, text='Enable Multithreading ( ͡° ͜ʖ ͡°)',variable=var1, onvalue=1, offvalue=0).place(x=15,y=360)
 
 #user entry and download button
 name_label = tk.Label(root, text='Song name &\nURL or Playlist URL', font=('calibre', 8, 'bold'))
